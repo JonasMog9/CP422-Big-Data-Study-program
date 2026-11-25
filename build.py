@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the CP422 Midterm Lab.
+"""Build the CP422 Study Lab.
 
 Inlines the scripts from src/ into one page and writes:
   index.html          a complete standalone page: double-click to open in any browser
@@ -10,7 +10,7 @@ import pathlib
 
 ROOT = pathlib.Path(__file__).resolve().parent
 SRC = ROOT / "src"
-SCRIPTS = ["content-theory.js", "content-code.js", "app.js"]
+SCRIPTS = ["content-theory.js", "content-code.js", "content-final.js", "app.js"]
 
 page = (SRC / "page.html").read_text(encoding="utf-8")
 for name in SCRIPTS:

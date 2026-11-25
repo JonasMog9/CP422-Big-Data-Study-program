@@ -1,4 +1,4 @@
-<title>CP422 Midterm Lab</title>
+<title>CP422 Study Lab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,6 +130,7 @@ main > * { min-width: 0; }
 .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .row.spread { justify-content: space-between; }
 .stack { display: grid; gap: 10px; }
+.stack > *, .grid > *, .grid-2 > *, .card > * { min-width: 0; }
 .btn {
   border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 8px 14px; cursor: pointer;
   font-weight: 700; display: inline-flex; gap: 6px; align-items: center; min-height: 40px; text-decoration: none;
@@ -299,6 +300,7 @@ input.blank.no { border-color: var(--bad); background: var(--bad-bg); }
 .rubric li { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; border-top: 1px solid var(--line); }
 .rubric li:first-child { border-top: 0; }
 .rubric input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--map); flex: none; }
+.rubric label, .checklist label, .checks li span { min-width: 0; overflow-wrap: anywhere; }
 .rubric .pts { margin-left: auto; font: 600 .8rem var(--f-mono); color: var(--ink-2); white-space: nowrap; }
 .ai-box { border: 1.5px solid var(--reduce); border-radius: 9px; padding: 14px; background: var(--reduce-bg); }
 .ai-box .score { font-family: var(--f-display); font-stretch: 120%; font-weight: 800; font-size: 2rem; line-height: 1; color: var(--reduce); }
@@ -334,9 +336,9 @@ pre, code, kbd, .pline, .editor, input.blank { font-variant-ligatures: none !imp
 <header class="topbar">
   <div class="topbar-inner">
     <div class="topbar-row">
-      <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>CP422 <span>Midterm Lab</span></div>
+      <div class="brand"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>CP422 <span>Study Lab</span></div>
       <div class="topbar-meta">
-        <span class="pill count" id="countdown-pill">Midterm Fri Oct 23</span>
+        <span class="pill count" id="countdown-pill">Quiz Fri Nov 27</span>
         <span class="pill" id="ai-pill" title="Claude grading and tutoring">Claude: checking…</span>
       </div>
     </div>
@@ -354,4 +356,5 @@ pre, code, kbd, .pline, .editor, input.blank { font-variant-ligatures: none !imp
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <!-- inline:content-theory.js -->
 <!-- inline:content-code.js -->
+<!-- inline:content-final.js -->
 <!-- inline:app.js -->

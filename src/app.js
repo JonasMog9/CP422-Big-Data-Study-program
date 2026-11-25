@@ -1,4 +1,4 @@
-/* CP422 Midterm Lab: app logic. Vanilla JS, no build step. Content lives in content-*.js. */
+/* CP422 Study Lab: app logic. Vanilla JS, no build step. Content lives in content-*.js. */
 (function () {
 "use strict";
 
@@ -86,7 +86,7 @@ function aiErrorText(e) {
 }
 
 const SLIDE_RULES = CP.slideStyle.map(t => `${t.name}:\n- ` + t.items.map(i => i.replace(/`/g, "")).join("\n- ")).join("\n");
-const GRADER_INTRO = `You are a fair, encouraging TA grading a practice answer for the CP422 "Programming for Big Data" midterm (Wilfrid Laurier University).
+const GRADER_INTRO = `You are a fair, encouraging TA grading a practice answer for the CP422 "Programming for Big Data" final quiz (Wilfrid Laurier University).
 The professor's marking rules:
 - Code is marked on LOGIC and completeness, not syntax. Ignore missing semicolons, brackets, imports, small typos and capitalization.
 - He only accepts the approach taught in the lecture slides and labs ("his way"). If the student uses a method that is not one of the slide patterns below, still credit correct logic but point out the slide-style equivalent in "offSlide".
@@ -153,7 +153,7 @@ async function runAsk(details) {
   const ta = $("textarea", details), out = $(".answer-text", details);
   const stop = $('[data-act="ask-stop"]', details);
   const qtext = ta.value.trim() || "Explain this so I understand it for the exam.";
-  const prompt = `You are a patient tutor helping a student cram for the CP422 "Programming for Big Data" midterm. Answer in under 180 words, plain text, using the course's own terms and the way the lecture slides teach it (the professor only accepts his way). If code helps, keep it short and in the slide style.
+  const prompt = `You are a patient tutor helping a student cram for the CP422 "Programming for Big Data" final quiz. Answer in under 180 words, plain text, using the course's own terms and the way the lecture slides teach it (the professor only accepts his way). If code helps, keep it short and in the slide style.
 
 Slide patterns:
 ${SLIDE_RULES}
@@ -195,6 +195,7 @@ function go(name, opts = {}) {
     else if (opts.track) { state.track = opts.track; state.ex = null; }
   }
   if (name === "short" && opts.id) state.sa = opts.id;
+  if (name === "notes" && opts.topic) { state.notesTopic = opts.topic; state.notesQuery = ""; }
   if (name === "quiz" && opts.topic) { state.quiz = null; state.quizSetup.topics = [opts.topic]; }
   try { if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name); } catch (e) { /* ignore */ }
   render();
@@ -216,10 +217,10 @@ const examStart = new Date(CP.exam.start).getTime();
 const examEnd = new Date(CP.exam.end).getTime();
 function countdownParts() {
   const ms = examStart - Date.now();
-  if (Date.now() > examEnd) return { done: true, text: "Midterm done" };
-  if (ms <= 0) return { live: true, text: "Midterm in progress" };
+  if (Date.now() > examEnd) return { done: true, text: CP.exam.name + " done" };
+  if (ms <= 0) return { live: true, text: CP.exam.name + " in progress" };
   const d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000), m = Math.floor(ms % 3600000 / 60000);
-  return { d, h, m, text: d ? `${d}d ${h}h to midterm` : `${h}h ${m}m to midterm` };
+  return { d, h, m, text: d ? `${d}d ${h}h to the quiz` : `${h}h ${m}m to the quiz` };
 }
 function tickCountdown() {
   const c = countdownParts();
@@ -247,9 +248,9 @@ function renderPlan() {
   view.innerHTML = `
   <section class="hero fade-in">
     <div>
-      <p class="eyebrow">${esc(e.where)} · Fri Oct 23 · 10:30-11:20</p>
-      <h1 style="margin-top:6px">CP422 Midterm</h1>
-      <p class="when">${esc(e.minutes)} minutes. Covers everything up to the start of Spark Streaming.</p>
+      <p class="eyebrow">${esc(e.where)} · ${esc(e.dateLabel)}${e.weight ? " · " + esc(e.weight) : ""}</p>
+      <h1 style="margin-top:6px">${esc(e.title)}</h1>
+      <p class="when">${esc(e.minutes)} minutes. ${esc(e.scope)}</p>
     </div>
     <div class="stack">
       <div class="countdown" id="countdown-big"></div>
@@ -356,7 +357,9 @@ function startQuiz(opts = {}) {
   const setup = { ...state.quizSetup, ...opts };
   let pool;
   if (setup.mode === "mistakes") pool = mistakes();
-  else if (setup.mode === "review") pool = QUESTIONS.filter(q => q.review);
+  else if (setup.mode === "review") pool = QUESTIONS.filter(q => q.review === true);
+  else if (setup.mode === "review2") pool = QUESTIONS.filter(q => q.review === 2);
+  else if (setup.mode === "newtopics") pool = QUESTIONS.filter(q => TOPIC[q.topic].isNew);
   else {
     pool = QUESTIONS.filter(q => setup.topics.includes(q.topic) && (setup.kind === "all" || q.kind === setup.kind));
     if (setup.mode === "new") pool = pool.filter(q => !S.q[q.id]);
@@ -365,9 +368,9 @@ function startQuiz(opts = {}) {
   // Unseen and previously-missed questions first, then the rest.
   const weight = q => { const r = S.q[q.id]; return !r ? 0 : r.last === 0 ? 1 : 2; };
   pool = shuffle(pool).sort((a, b) => weight(a) - weight(b));
-  const count = setup.mode === "mistakes" || setup.mode === "review" ? pool.length : Math.min(setup.count === "all" ? pool.length : +setup.count, pool.length);
+  const count = ["mistakes", "review", "review2"].includes(setup.mode) ? pool.length : Math.min(setup.count === "all" ? pool.length : +setup.count, pool.length);
   const items = pool.slice(0, count).map(q => q.kind === "mcq" ? { ...q, order: shuffle(q.options.map((_, i) => i)) } : q);
-  state.quiz = { items, i: 0, answers: [], done: false, label: setup.mode === "mistakes" ? "Redo missed questions" : setup.mode === "review" ? "Prof's review MCQs" : "Practice quiz" };
+  state.quiz = { items, i: 0, answers: [], done: false, label: { mistakes: "Redo missed questions", review: "Review sheet 1 MCQs", review2: "Review sheet 2 MCQs", newtopics: "Since the midterm" }[setup.mode] || "Practice quiz" };
   state.view = "quiz";
   try { history.replaceState(null, "", "#quiz"); } catch (e) { /* ignore */ }
   render();
@@ -401,7 +404,7 @@ function renderQuiz() {
   view.innerHTML = `
     <div class="progress-top"><span class="small muted">${esc(z.label)} · ${z.i + 1} / ${z.items.length}</span><div class="meter"><i style="width:${pct(z.i + (answered ? 1 : 0), z.items.length)}%"></i></div><span class="small muted">${correctSoFar} right</span></div>
     <section class="card fade-in">
-      <div class="qmeta"><span class="tag">${esc(TOPIC[q.topic].name)}</span><span class="tag ${q.kind === "mcq" ? "map" : "shuffle"}">${q.kind === "mcq" ? "Multiple choice" : "True / False"}</span>${q.review ? '<span class="tag reduce">From the prof\'s review sheet</span>' : ""}</div>
+      <div class="qmeta"><span class="tag">${esc(TOPIC[q.topic].name)}</span><span class="tag ${q.kind === "mcq" ? "map" : "shuffle"}">${q.kind === "mcq" ? "Multiple choice" : "True / False"}</span>${q.review ? `<span class="tag reduce">From review sheet ${q.review === 2 ? 2 : 1}</span>` : ""}</div>
       <p class="qtext">${md(q.q)}</p>
       ${q.kind === "mcq" ? '<p class="small muted">Several options may be partly true. Pick the best one.</p>' : ""}
       ${opts}
@@ -453,7 +456,7 @@ function renderQuizSetup(empty) {
     <div class="grid-2">
       <section class="card stack">
         <h2>Build a quiz</h2>
-        <div><p class="eyebrow">Topics</p><div class="row" style="margin-top:6px">${CP.topics.map(t => `<button class="chip" data-qtopic="${t.id}" aria-pressed="${su.topics.includes(t.id)}">${esc(t.name)}</button>`).join("")}</div>
+        <div><p class="eyebrow">Topics</p><div class="row" style="margin-top:6px">${CP.topics.map(t => `<button class="chip" data-qtopic="${t.id}" aria-pressed="${su.topics.includes(t.id)}">${esc(t.name)}${t.isNew ? " ✦" : ""}</button>`).join("")}</div>
           <div class="row" style="margin-top:6px"><button class="btn small ghost" data-act="all-topics">All topics</button></div></div>
         <div><p class="eyebrow">Question type</p><div class="row" style="margin-top:6px">${[["all", "Both"], ["mcq", "Multiple choice"], ["tf", "True / False"]].map(([v, l]) => `<button class="chip" data-kind="${v}" aria-pressed="${su.kind === v}">${l}</button>`).join("")}</div></div>
         <div><p class="eyebrow">How many</p><div class="row" style="margin-top:6px">${["10", "20", "40", "all"].map(v => `<button class="chip" data-count="${v}" aria-pressed="${String(su.count) === v}">${v === "all" ? "All " + poolSize : v}</button>`).join("")}</div></div>
@@ -461,7 +464,9 @@ function renderQuizSetup(empty) {
       </section>
       <section class="card stack">
         <h2>Quick drills</h2>
-        <button class="btn" data-act="review" style="justify-content:space-between"><span>The prof's 10 review MCQs</span><span class="tag reduce">answers posted</span></button>
+        <button class="btn" data-act="review2" style="justify-content:space-between"><span>Review sheet 2: the prof's 15 MCQs</span><span class="tag reduce">new</span></button>
+        <button class="btn" data-act="newtopics" style="justify-content:space-between"><span>Since the midterm: Streaming, ML, Pig</span><span class="tag">${QUESTIONS.filter(q => TOPIC[q.topic].isNew).length}</span></button>
+        <button class="btn" data-act="review" style="justify-content:space-between"><span>Review sheet 1: the prof's 10 MCQs</span><span class="tag">midterm</span></button>
         <button class="btn" data-act="mistakes" ${m ? "" : "disabled"} style="justify-content:space-between"><span>Redo what I got wrong</span><span class="tag ${m ? "bad" : ""}">${m}</span></button>
         <button class="btn" data-act="new" style="justify-content:space-between"><span>Only questions I haven't seen</span><span class="tag">${QUESTIONS.filter(q => !S.q[q.id]).length}</span></button>
         <p class="small muted">Keyboard: A-D or 1-4 to answer, T / F for true/false, Enter for next.</p>
@@ -476,6 +481,8 @@ function renderQuizSetup(empty) {
     if (a.dataset.act === "all-topics") { su.topics = CP.topics.map(t => t.id); renderQuizSetup(); }
     if (a.dataset.act === "start") startQuiz({ mode: "all" });
     if (a.dataset.act === "review") startQuiz({ mode: "review" });
+    if (a.dataset.act === "review2") startQuiz({ mode: "review2", count: 20 });
+    if (a.dataset.act === "newtopics") startQuiz({ mode: "newtopics", count: 20 });
     if (a.dataset.act === "mistakes") startQuiz({ mode: "mistakes" });
     if (a.dataset.act === "new") startQuiz({ mode: "new", topics: CP.topics.map(t => t.id), kind: "all" });
   };
@@ -523,7 +530,7 @@ function renderCode() {
     const ex = CP.code.filter(c => c.track === t.id);
     const ladder = CP.levels.map(l => { const items = ex.filter(c => c.level === l.n); const d = items.filter(c => S.code[c.id] && S.code[c.id].done).length; return `<i class="${d === items.length && items.length ? "full" : d ? "part" : ""}" title="Level ${l.n}: ${d}/${items.length}"></i>`; }).join("");
     const s = trackStats(t.id);
-    return `<button class="card track" data-track="${t.id}" aria-pressed="${tr === t.id}"><h3>${esc(t.name)}</h3><p class="small muted">${esc(t.blurb)}</p><div class="ladder">${ladder}</div><span class="small muted">${s.done}/${s.total} done</span></button>`;
+    return `<button class="card track" data-track="${t.id}" aria-pressed="${tr === t.id}"><h3>${esc(t.name)}${t.isNew ? ' <span class="tag reduce">new</span>' : ""}</h3><p class="small muted">${esc(t.blurb)}</p><div class="ladder">${ladder}</div><span class="small muted">${s.done}/${s.total} done</span></button>`;
   }).join("")}</div>`;
   let list = "";
   if (tr) {
@@ -533,7 +540,7 @@ function renderCode() {
     </section>`;
   }
   view.innerHTML = `
-    <div class="row spread"><h1>Code Lab</h1><span class="small muted">2 coding questions = 40% of the midterm</span></div>
+    <div class="row spread"><h1>Code Lab</h1><span class="small muted">2 coding questions = 40% of the quiz</span></div>
     ${tr ? "" : `<p class="note">New to this? Start with <strong>Hadoop Streaming</strong>: it's plain Python with stdin and stdout. Then do <strong>Java MapReduce</strong> (same logic, more boilerplate), then the two Spark tracks.</p>`}
     ${tracksHtml}
     ${list}
@@ -718,7 +725,8 @@ function checksHtml(results) {
   return `<div class="note fade-in" style="margin-top:8px"><p><strong>Quick check: ${n}/${results.length}</strong> <span class="small muted">Pattern-based, so it can miss a correct answer written differently. The rubric is the real test.</span></p>
     <ul class="clean checks" style="margin-top:6px">${results.map(r => `<li><span class="mark ${r.ok ? "y" : "n"}">${r.ok ? "✓" : "✗"}</span><span>${md(r.label)}</span></li>`).join("")}</ul></div>`;
 }
-function langName(ex) { return ex.track === "java" ? "Java MapReduce" : ex.track === "streaming" ? "Python, Hadoop Streaming" : ex.track === "pyspark" ? "PySpark" : "Spark SQL / DataFrames"; }
+const LANG_NAMES = { java: "Java MapReduce", streaming: "Python, Hadoop Streaming", pyspark: "PySpark", sql: "Spark SQL / DataFrames", pig: "Pig Latin", ml: "PySpark MLlib", sparkstream: "Spark Streaming (PySpark)" };
+function langName(ex) { return LANG_NAMES[ex.track] || TRACK[ex.track].name; }
 
 function wireExercise(ex) {
   if (ex.type === "parsons") drawParsons(ex);
@@ -769,7 +777,7 @@ function exAction(ex, act, el) {
     let right = 0;
     inputs.forEach((inp, i) => {
       if (act === "reveal-fill") { inp.value = parts[i].blank[0]; st.fill = st.fill || []; st.fill[i] = inp.value; }
-      const ci = ex.ci || ex.lang === "sql";
+      const ci = ex.ci || ex.lang === "sql" || ex.lang === "pig";
       const ok = parts[i].blank.some(a => norm(a, ci) === norm(inp.value, ci));
       inp.classList.toggle("ok", ok); inp.classList.toggle("no", !ok);
       if (ok) right++;
@@ -848,7 +856,7 @@ function renderShort() {
   const cur = state.sa && SHORT[state.sa];
   const list = `<ul class="clean exlist">${CP.short.map(s => { const st = S.sa[s.id] || {}; return `<li><button data-sa="${s.id}" ${cur && cur.id === s.id ? 'aria-current="true" style="background:var(--sunk)"' : ""}><span class="tag">${esc(TOPIC[s.topic].name)}</span><span>${md(s.q)}</span>${st.score != null ? `<span class="status done">✓ ${esc(st.score)}/${esc(s.marks)}</span>` : st.draft ? '<span class="status muted">draft</span>' : '<span class="status muted">→</span>'}</button></li>`; }).join("")}</ul>`;
   if (!cur) {
-    view.innerHTML = `<div class="row spread"><h1>Short answer</h1><span class="small muted">1 question on the midterm, 20%</span></div>
+    view.innerHTML = `<div class="row spread"><h1>Short answer</h1><span class="small muted">1 question on the quiz, 20%</span></div>
       <p class="note">He said the short answer is about <strong>comparing, describing the difference, and explaining why</strong>. Write 5-8 sentences that hit each key point, using the slide terms. The YARN roles one is flagged for the exam.</p>
       <section class="card">${list}</section>`;
   } else {
@@ -910,8 +918,9 @@ function saSelf(cur) {
 }
 
 /* ================= MOCK EXAM ================= */
-const MR_FAMILY = CP.code.filter(c => c.exam && (c.track === "java" || c.track === "streaming"));
-const SPARK_FAMILY = CP.code.filter(c => c.exam && (c.track === "pyspark" || c.track === "sql"));
+// One question from the Hadoop side (Java, Streaming, Pig) and one from the Spark side (PySpark, SQL, MLlib, Streaming).
+const MR_FAMILY = CP.code.filter(c => c.exam && ["java", "streaming", "pig"].includes(c.track));
+const SPARK_FAMILY = CP.code.filter(c => c.exam && ["pyspark", "sql", "ml", "sparkstream"].includes(c.track));
 function pickSpread(pool, n) {
   // Round-robin across topics so the paper covers everything.
   const byTopic = {};
